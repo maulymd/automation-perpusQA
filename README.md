@@ -10,18 +10,34 @@ Framework test automation modern untuk API dan E2E **PerpusQA** (`https://playgr
 automation-perpusQA/
 ├── .docs/                             # Dokumentasi API, aturan bisnis, & RBAC matrix
 ├── .agents/skills/                    # SOP & panduan automation skill (playwright-pom)
+├── pages/                             # Page Object Model (POM) classes & components
+│   ├── base.page.ts                   # Induk BasePage dengan helper navigasi & session
+│   ├── login.page.ts                  # POM Halaman Login (/login-perpus.html)
+│   ├── loans.page.ts                  # POM Halaman Pinjaman Anggota (/perpus-pinjaman.html)
+│   ├── operator-loans.page.ts         # POM Meja Layanan Pustakawan (/perpus-operator.html#pinjaman)
+│   ├── catalog.page.ts                # POM Katalog Anggota (/perpus-anggota.html)
+│   ├── book-detail.page.ts            # POM Detail Buku (/perpus-buku.html?id=X)
+│   └── components/                    # Reusable web components
+│       ├── confirm-dialog.component.ts# Komponen modal dialog konfirmasi (role="dialog")
+│       └── toast.component.ts         # Komponen toast status (#toast[role="status"])
 ├── fixtures/                          # Playwright custom multi-role fixtures & API clients
 │   ├── auth.fixture.ts                # Smart context: operatorRequest, memberRequest, blockedRequest
 │   ├── api.fixture.ts                 # Pre-authenticated domain helpers (books, loans)
-│   └── index.ts                       # Unified test fixture export
+│   ├── page.fixture.ts                # Injeksi instans Page Object Model ke setiap test
+│   └── index.ts                       # Unified test fixture export (Selalu import test dari sini)
 ├── helpers/
 │   ├── api/                           # Encapsulated API client wrappers (AuthApi, BooksApi, LoansApi)
 │   └── schemas/                       # Zod contract schemas & inferred TypeScript types
 │       ├── auth.schema.ts             # Auth, me profile, & error schemas
 │       ├── books.schema.ts            # Book & catalog list schemas
 │       └── loans.schema.ts            # Loan & loan list schemas
-├── tests/
-│   └── api/                           # Test suites (88 Automated Tests)
+├── specs/                             # Test plans & skenario arsitektur
+│   └── peminjaman.plan.md             # Dokumen rencana pengujian komprehensif fitur peminjaman
+├── tests/                             # Test suites (Total: 103 Automated Tests)
+│   ├── e2e/                           # E2E & Hybrid UI tests (15 tests)
+│   │   ├── peminjaman.spec.ts         # Fitur Manajemen Peminjaman Buku (15 tests)
+│   │   └── seed.spec.ts               # Seed otentikasi login
+│   └── api/                           # Direct API test suites (88 tests)
 │       ├── auth.spec.ts               # Authentication & session tests (8 tests)
 │       ├── smoke.spec.ts              # P0 Smoke & golden circulation journey (3 tests)
 │       ├── rbac.spec.ts               # Role-Based Access Control security matrix (39 tests)
@@ -35,9 +51,9 @@ automation-perpusQA/
 
 ---
 
-## 📋 Daftar Test Case yang Telah Diimplementasikan (Total: 88 Tests)
+## 📋 Daftar Test Case yang Telah Diimplementasikan (Total: 103 Tests)
 
-Semua skenario pengujian di bawah ini telah aktif, otomatis, dan terverifikasi **100% lulus (88 passed)** dalam waktu **~5.8 detik**:
+Semua skenario pengujian di bawah ini aktif, terotomatisasi, dan terverifikasi **100% lulus (103 passed)**:
 
 ### 1. Modul Autentikasi & Sesi ([`tests/api/auth.spec.ts`](./tests/api/auth.spec.ts) · 8 Tests)
 * **`POST /api/perpus/login`**
@@ -157,6 +173,29 @@ Semua skenario pengujian di bawah ini telah aktif, otomatis, dan terverifikasi *
 
 ---
 
+### 7. Manajemen Peminjaman Buku: E2E & POM ([`tests/e2e/peminjaman.spec.ts`](./tests/e2e/peminjaman.spec.ts) · 15 Tests)
+Pengujian antarmuka pengguna (UI) dan alur hybrid berbasis **Page Object Model (POM)** ketat untuk fitur sirkulasi di portal anggota (`/perpus-pinjaman.html`) dan meja layanan pustakawan (`/perpus-operator.html#pinjaman`):
+
+* **Skenario Positif (Happy Path & Circulation Flows)**:
+  * `[TC-LOAN-01]` **Statistik & Kartu Pinjaman Aktif**: Anggota melihat ringkasan kuota pinjam (`loan-count`), antrean, tagihan denda, serta kartu pinjaman aktif (`@smoke` `@hybrid`).
+  * `[TC-LOAN-02]` **Perpanjangan Durasi Pinjaman**: Anggota berhasil memperpanjang jatuh tempo buku (+7 hari) melalui modal konfirmasi dialog & menerima toast sukses (`@smoke` `@hybrid`).
+  * `[TC-LOAN-03]` **Pembatalan Antrean Reservasi**: Anggota berpindah ke tab antrean, memicu modal pembatalan destruktif, dan membatalkan antrean buku (`@regression` `@hybrid`).
+  * `[TC-LOAN-04]` **Validasi Komponen Tab Antrean**: Memverifikasi panel antrean menampilkan nomor urutan antrean aktif atau empty state antrean (`@regression` `@hybrid`).
+  * `[TC-LOAN-05]` **Tabel Riwayat Pengembalian & Denda**: Anggota dapat melihat histori pengembalian buku, status denda (Lunas/Belum dibayar/Tepat waktu), serta kontrol paginasi (`@regression`).
+  * `[TC-LOAN-06]` **Penerimaan Pengembalian Buku oleh Pustakawan**: Pustakawan menerima pengembalian buku di meja layanan melalui modal konfirmasi & stok buku kembali bertambah (`@smoke` `@hybrid`).
+  * `[TC-LOAN-07]` **Filter Status Pinjaman Meja Pustakawan**: Memfilter daftar pinjaman berdasarkan status `aktif`, `selesai`, dan `semua` (`@regression`).
+  * `[TC-LOAN-08]` **Pencarian Pinjaman Real-Time**: Pustakawan mencari pinjaman berdasarkan nama anggota secara reaktif (`@regression`).
+* **Skenario Negatif, RBAC & Boundary**:
+  * `[TC-LOAN-09]` **Akses Tamu Publik (Unauthenticated)**: Mengakses langsung `/perpus-pinjaman.html` tanpa login menampilkan panel `#signed-out-view` dan menyembunyikan data pinjaman (`@regression`).
+  * `[TC-LOAN-10]` **Penolakan Akses Pustakawan**: Pustakawan yang membuka portal anggota `/perpus-pinjaman.html` ditolak via `#denied-view` (`@regression`).
+  * `[TC-LOAN-11]` **Pencegahan Perpanjangan Ganda**: Kartu buku yang sudah pernah diperpanjang menyembunyikan tombol perpanjang dan menampilkan badge statis `Sudah diperpanjang` (`@regression` `@hybrid`).
+  * `[TC-LOAN-12]` **Restriksi Anggota Diblokir**: Anggota berstatus `Diblokir` melihat banner pemblokiran dan tombol perpanjang dinonaktifkan (`disabled`) (`@regression`).
+  * `[TC-LOAN-13]` **Pembatalan Modal Dialog (User Abort)**: Menutup modal konfirmasi tidak mengeksekusi request perpanjangan ke server (`@regression`).
+  * `[TC-LOAN-14]` **Pencarian Pinjaman Nihil**: Pencarian dengan kata kunci acak pada meja pustakawan menampilkan pesan *empty state* ramah pengguna (`@regression`).
+  * `[TC-LOAN-15]` **Validasi Batasan Peminjaman di Detail Buku**: Memvalidasi ketersediaan stok, tombol aksi, serta catatan batas maksimal pinjam 3 buku di `/perpus-buku.html` (`@regression`).
+
+---
+
 ## 🚀 Memulai (Quick Start)
 
 ### 1. Instalasi Dependencies
@@ -188,7 +227,9 @@ BLOCKED_PASS=baca123
 | :--- | :--- |
 | `npm test` | Menjalankan seluruh pengujian (API & Browser). |
 | `npm run test:api` | Menjalankan seluruh 88 API test cases. |
-| `npm run test:smoke` | Menjalankan pengujian P0 Smoke & Healthcheck. |
+| `npm run test:e2e` | Menjalankan seluruh 15 E2E & Hybrid UI test cases (Chromium). |
+| `npm run test:smoke` | Menjalankan pengujian P0 Smoke & Healthcheck (`@smoke`). |
+| `npm run test:regression` | Menjalankan seluruh pengujian regresi (`@regression`). |
 | `npm run test:rbac` | Menjalankan pengujian keamanan Matriks Hak Akses (39 test cases). |
 | `npm run test:boundary` | Menjalankan seluruh Negative & Boundary test suites (38 test cases). |
 | `npm run test:ui` | Membuka interactive mode Playwright UI. |
@@ -198,8 +239,9 @@ BLOCKED_PASS=baca123
 
 ## 🛡️ Standar Kualitas & Best Practice
 
-1. **Custom Multi-Role Fixtures**: Tidak perlu login berulang atau pasang token manual di setiap test. Cukup gunakan `{ operatorRequest }`, `{ memberRequest }`, `{ blockedRequest }`, atau `{ publicRequest }`.
-2. **Contract Schema Testing**: Semua response divalidasi struktur dan tipe datanya secara ketat menggunakan **Zod** (`safeParse`).
-3. **Data Privacy Masking**: Memvalidasi kepatuhan privasi data di mana data milik pengguna lain otomatis dibalas `404 Not Found`.
-4. **Boundary & Negative Coverage**: Menguji batas bawah/atas paginasi, format tanggal, panjang string, serta proteksi akun demo dan duplikasi data.
-5. **Zero Flakiness**: Menggunakan cleanup otomatis (`finally` block) sehingga database pengujian selalu kembali bersih setelah test berjalan.
+1. **Strict Page Object Model (POM)**: Seluruh selector dan method aksi berada di `pages/` (mewarisi `BasePage`). File `.spec.ts` bebas dari raw selector (`page.locator`, `page.click`).
+2. **Custom Multi-Role Fixtures**: Otentikasi otomatis multi-peran (`operatorRequest`, `memberRequest`, `blockedRequest`, `publicRequest`) serta injeksi instans Page Object via `@fixtures/index`.
+3. **Contract Schema Testing**: Semua response API divalidasi struktur dan tipe datanya secara ketat menggunakan **Zod** (`safeParse`).
+4. **Data Privacy Masking**: Memvalidasi kepatuhan privasi data di mana data milik pengguna lain otomatis dibalas `404 Not Found`.
+5. **Boundary & Negative Coverage**: Menguji batas bawah/atas paginasi, format tanggal, panjang string, proteksi akun demo, limit kuota 3 buku, dan pencegahan perpanjangan ganda.
+6. **Zero Flakiness & Zero Artificial Waits**: Tidak menggunakan `page.waitForTimeout()` atau `networkidle`. Mengandalkan Playwright *web-first assertions* (`toBeVisible()`, `toHaveText()`).
