@@ -8,30 +8,36 @@ Framework test automation modern untuk API dan E2E **PerpusQA** (`https://playgr
 
 ```text
 automation-perpusQA/
-├── .docs/                    # Dokumentasi API, aturan bisnis, & RBAC matrix
-├── .agents/skills/           # SOP & panduan automation skill (playwright-pom)
-├── fixtures/                 # Playwright custom multi-role fixtures & API clients
-│   ├── auth.fixture.ts       # Smart context: operatorRequest, memberRequest, blockedRequest
-│   ├── api.fixture.ts        # Pre-authenticated domain helpers (books, loans)
-│   └── index.ts              # Unified test fixture export
+├── .docs/                             # Dokumentasi API, aturan bisnis, & RBAC matrix
+├── .agents/skills/                    # SOP & panduan automation skill (playwright-pom)
+├── fixtures/                          # Playwright custom multi-role fixtures & API clients
+│   ├── auth.fixture.ts                # Smart context: operatorRequest, memberRequest, blockedRequest
+│   ├── api.fixture.ts                 # Pre-authenticated domain helpers (books, loans)
+│   └── index.ts                       # Unified test fixture export
 ├── helpers/
-│   ├── api/                  # Encapsulated API client wrappers (AuthApi, BooksApi, LoansApi)
-│   └── schemas/              # Zod contract schemas & inferred TypeScript types
+│   ├── api/                           # Encapsulated API client wrappers (AuthApi, BooksApi, LoansApi)
+│   └── schemas/                       # Zod contract schemas & inferred TypeScript types
+│       ├── auth.schema.ts             # Auth, me profile, & error schemas
+│       ├── books.schema.ts            # Book & catalog list schemas
+│       └── loans.schema.ts            # Loan & loan list schemas
 ├── tests/
-│   └── api/                  # Test suites
-│       ├── auth.spec.ts      # Authentication & session tests (8 tests)
-│       ├── smoke.spec.ts     # P0 Smoke & golden circulation journey (3 tests)
-│       └── rbac.spec.ts      # Role-Based Access Control security matrix (39 tests)
-├── .env.example              # Template variabel lingkungan
-├── playwright.config.ts      # Konfigurasi terpusat Playwright
-└── tsconfig.json             # TypeScript compiler config & path aliases
+│   └── api/                           # Test suites (88 Automated Tests)
+│       ├── auth.spec.ts               # Authentication & session tests (8 tests)
+│       ├── smoke.spec.ts              # P0 Smoke & golden circulation journey (3 tests)
+│       ├── rbac.spec.ts               # Role-Based Access Control security matrix (39 tests)
+│       ├── boundary-catalog.spec.ts      # Negative & boundary tests modul katalog (15 tests)
+│       ├── boundary-loans.spec.ts        # Negative & boundary tests modul peminjaman & antrean (11 tests)
+│       └── boundary-auth-members.spec.ts # Negative & boundary tests modul auth, member, & ulasan (12 tests)
+├── .env.example                       # Template variabel lingkungan
+├── playwright.config.ts               # Konfigurasi terpusat Playwright
+└── tsconfig.json                      # TypeScript compiler config & path aliases
 ```
 
 ---
 
-## 📋 Daftar Test Case yang Telah Diimplementasikan (Total: 50 Tests)
+## 📋 Daftar Test Case yang Telah Diimplementasikan (Total: 88 Tests)
 
-Semua skenario pengujian di bawah ini telah aktif, otomatis, dan terverifikasi **100% lulus (50 passed)** dalam waktu **~2.7 detik**:
+Semua skenario pengujian di bawah ini telah aktif, otomatis, dan terverifikasi **100% lulus (88 passed)** dalam waktu **~5.8 detik**:
 
 ### 1. Modul Autentikasi & Sesi ([`tests/api/auth.spec.ts`](./tests/api/auth.spec.ts) · 8 Tests)
 * **`POST /api/perpus/login`**
@@ -90,6 +96,67 @@ Semua skenario pengujian di bawah ini telah aktif, otomatis, dan terverifikasi *
 
 ---
 
+### 4. Negative & Boundary Tests: Katalog Buku ([`tests/api/boundary-catalog.spec.ts`](./tests/api/boundary-catalog.spec.ts) · 15 Tests)
+* **Query Parameters Boundary (GET `/books`)**:
+  * `[CAT-BND-01]` Batas bawah nomor halaman `page=0` (400 Bad Request).
+  * `[CAT-BND-02]` Batas atas ukuran halaman `limit=21` (400 Bad Request, max limit 20).
+  * `[CAT-BND-03]` Batas bawah ukuran halaman `limit=0` (400 Bad Request).
+  * `[CAT-BND-04]` Kategori tidak dikenal `category=InvalidCategory` (400 Bad Request).
+  * `[CAT-BND-05]` Parameter pengurutan tidak valid `sort=unsupported_sort` (400 Bad Request).
+* **Payload Creation Boundary (POST `/books`)**:
+  * `[CAT-BND-06]` Tahun terbit di bawah batas minimum `year=1499` (422 Unprocessable Content, min 1500).
+  * `[CAT-BND-07]` Tahun terbit melebihi batas masa depan `year=2099` (422 Unprocessable Content).
+  * `[CAT-BND-08]` Jumlah eksemplar negatif `copies=-1` (422 Unprocessable Content).
+  * `[CAT-BND-09]` Jumlah eksemplar melebihi batas `copies=100` (422 Unprocessable Content, max 99).
+  * `[CAT-BND-10]` Nama penulis terlalu pendek (1 karakter) (422 Unprocessable Content, min 2).
+* **Business Rule Conflicts (409 Conflict)**:
+  * `[CAT-BND-11]` Duplikasi buku: Judul dan penulis yang sama persis sudah ada di katalog (409 Conflict).
+  * `[CAT-BND-12]` Menghapus buku yang eksemplarnya sedang dipinjam aktif oleh anggota (409 Conflict).
+* **Non-Existent Resources & Empty Update (404 & 422)**:
+  * `[CAT-BND-13]` `GET /books/{id}` dengan ID tidak ada (404 Not Found).
+  * `[CAT-BND-14]` `PATCH /books/{id}` dengan body kosong tanpa field yang diubah (422 Unprocessable Content).
+  * `[CAT-BND-15]` `DELETE /books/{id}` dengan ID tidak ada (404 Not Found).
+
+---
+
+### 5. Negative & Boundary Tests: Peminjaman & Antrean ([`tests/api/boundary-loans.spec.ts`](./tests/api/boundary-loans.spec.ts) · 11 Tests)
+* **Query Parameters Boundary (GET `/loans`)**:
+  * `[LOAN-BND-01]` Nilai status pinjaman tidak dikenal (400 Bad Request).
+  * `[LOAN-BND-02]` Batas bawah limit halaman `limit=0` (400 Bad Request).
+  * `[LOAN-BND-03]` Batas atas limit halaman `limit=51` (400 Bad Request, max 50).
+* **Borrowing Constraints (POST `/loans`)**:
+  * `[LOAN-BND-04]` Meminjam buku dengan `bookId` tidak ada (404 Not Found).
+  * `[LOAN-BND-05]` Format tanggal `borrowedAt` tidak sesuai YYYY-MM-DD (422 Unprocessable Content).
+  * `[LOAN-BND-06]` Meminjam kembali buku yang sedang dipinjam aktif oleh anggota yang sama (409 Conflict).
+  * `[LOAN-BND-07]` Meminjam buku yang stok eksemplarnya 0 (buku ID 7 "Lessons Learned in Software Testing") (409 Conflict).
+* **Extend & Return Constraints**:
+  * `[LOAN-BND-08]` Memperpanjang pinjaman dengan ID tidak ada (404 Not Found).
+  * `[LOAN-BND-09]` Menerima pengembalian pinjaman dengan ID tidak ada (404 Not Found).
+* **Reservation Constraints (POST `/reservations`)**:
+  * `[LOAN-BND-10]` Mendaftar antrean pada buku yang eksemplar bebasnya masih tersedia (> 0) (409 Conflict).
+  * `[LOAN-BND-11]` Mendaftar antrean pada buku dengan ID tidak ada (404 Not Found).
+
+---
+
+### 6. Negative & Boundary Tests: Auth, Anggota, & Ulasan ([`tests/api/boundary-auth-members.spec.ts`](./tests/api/boundary-auth-members.spec.ts) · 12 Tests)
+* **Library Creation Boundary (POST `/libraries`)**:
+  * `[AUTH-BND-01]` Nama perpustakaan terlalu pendek (< 3 karakter) (422 Unprocessable Content).
+  * `[AUTH-BND-02]` Username mengandung huruf besar / karakter ilegal (422 Unprocessable Content).
+  * `[AUTH-BND-03]` Password terlalu pendek (< 6 karakter) (422 Unprocessable Content).
+  * `[AUTH-BND-04]` Username perpustakaan sudah terpakai oleh akun lain (409 Conflict).
+* **Member Management Boundary (POST/PATCH/DELETE `/members`)**:
+  * `[MBR-BND-01]` Nama anggota terlalu pendek (< 2 karakter) (422 Unprocessable Content).
+  * `[MBR-BND-02]` Username anggota sudah terpakai (409 Conflict).
+  * `[MBR-BND-03]` Mengubah akun demo yang dikunci (`AGT-1001`) (409 Conflict).
+  * `[MBR-BND-04]` Menghapus akun demo yang dikunci (`AGT-1001`) (409 Conflict).
+  * `[MBR-BND-05]` Mengakses detail anggota dengan ID tidak ada (404 Not Found).
+  * `[MBR-BND-06]` Filter status anggota tidak valid pada `GET /members` (400 Bad Request).
+* **Book Reviews Boundary (POST `/reviews`)**:
+  * `[REV-BND-01]` Rating ulasan di luar batas 1 sampai 5 (`rating=6`) (422 Unprocessable Content).
+  * `[REV-BND-02]` Menulis ulasan untuk buku dengan ID tidak ada (404 Not Found).
+
+---
+
 ## 🚀 Memulai (Quick Start)
 
 ### 1. Instalasi Dependencies
@@ -120,9 +187,10 @@ BLOCKED_PASS=baca123
 | Perintah | Deskripsi |
 | :--- | :--- |
 | `npm test` | Menjalankan seluruh pengujian (API & Browser). |
-| `npm run test:api` | Menjalankan seluruh API test suite (50 test case). |
+| `npm run test:api` | Menjalankan seluruh 88 API test cases. |
 | `npm run test:smoke` | Menjalankan pengujian P0 Smoke & Healthcheck. |
-| `npm run test:rbac` | Menjalankan pengujian keamanan Matriks Hak Akses (39 test case). |
+| `npm run test:rbac` | Menjalankan pengujian keamanan Matriks Hak Akses (39 test cases). |
+| `npm run test:boundary` | Menjalankan seluruh Negative & Boundary test suites (38 test cases). |
 | `npm run test:ui` | Membuka interactive mode Playwright UI. |
 | `npm run report` | Membuka laporan HTML interaktif hasil pengujian. |
 
@@ -133,4 +201,5 @@ BLOCKED_PASS=baca123
 1. **Custom Multi-Role Fixtures**: Tidak perlu login berulang atau pasang token manual di setiap test. Cukup gunakan `{ operatorRequest }`, `{ memberRequest }`, `{ blockedRequest }`, atau `{ publicRequest }`.
 2. **Contract Schema Testing**: Semua response divalidasi struktur dan tipe datanya secara ketat menggunakan **Zod** (`safeParse`).
 3. **Data Privacy Masking**: Memvalidasi kepatuhan privasi data di mana data milik pengguna lain otomatis dibalas `404 Not Found`.
-4. **Zero Flakiness**: Menggunakan cleanup otomatis (`finally` block) sehingga database pengujian selalu kembali bersih setelah test berjalan.
+4. **Boundary & Negative Coverage**: Menguji batas bawah/atas paginasi, format tanggal, panjang string, serta proteksi akun demo dan duplikasi data.
+5. **Zero Flakiness**: Menggunakan cleanup otomatis (`finally` block) sehingga database pengujian selalu kembali bersih setelah test berjalan.

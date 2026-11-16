@@ -6,9 +6,10 @@
   "scripts": {
     "test": "playwright test",
     "test:api": "playwright test --project=api",
-    "test:rbac": "playwright test tests/api/rbac.spec.ts --project=api",
-    "test:e2e": "playwright test --project=chromium",
     "test:smoke": "playwright test --grep @smoke",
+    "test:rbac": "playwright test tests/api/rbac.spec.ts --project=api",
+    "test:boundary": "playwright test tests/api/boundary*.spec.ts --project=api",
+    "test:e2e": "playwright test --project=chromium",
     "test:regression": "playwright test --grep @regression",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
