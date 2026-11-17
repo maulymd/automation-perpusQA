@@ -11,7 +11,7 @@
     "test:boundary": "playwright test tests/api/boundary*.spec.ts --project=api",
     "test:e2e": "playwright test --project=chromium",
     "test:regression": "playwright test --grep @regression",
-    "test:ui": "playwright test --ui",
+    "test:ui": "playwright test --ui --ui-port=8080",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "report": "playwright show-report"
